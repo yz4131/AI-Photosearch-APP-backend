@@ -4,7 +4,7 @@ import urllib.parse
 import boto3
 import requests
 
-#   hello!!!!!!!!!!!!!!!!!!!!!!!!!
+
 s3 = boto3.client('s3')
 client=boto3.client('rekognition')
 
@@ -19,20 +19,25 @@ def lambda_handler(event, context):
     try:
         response = s3.get_object(Bucket=bucket, Key=key)
         temp = s3.head_object(Bucket=bucket, Key=key)
+        try:
+            for i in temp['Metadata']['customlabels'].split(','):
+                labels.append(i)
+        except:
+            labels=[]
+        #print(temp)
         # print(temp['x-amz-meta-customLabels'])
-        # print("CONTENT TYPE: " + response['x-amz-meta-customLabels'])
         predict = client.detect_labels(Image={'S3Object':{'Bucket':bucket,'Name':key}}, MaxLabels=4, MinConfidence=50)
         for label in predict['Labels']:
             labels.append(label['Name'])
-        # print(labels)
+        #print(1)
+        #print(labels)
         res = {
             'objectKey': key,
             'bucket': bucket,
             'createdTimestamp': temp['ResponseMetadata']['HTTPHeaders']['date'],
             'labels': labels
         }
-        # res = json.dumps(res)
-        # print(res)
+        print(res)
 
         # post to es
         region = 'us-east-1'
@@ -46,6 +51,18 @@ def lambda_handler(event, context):
         headers = { "Content-Type": "application/json" }
         r = requests.post(url, auth=awsauth, json=res, headers=headers)
         print(r.text)
+        res = {
+        "isBase64Encoded": False,
+        "statusCode": 200,
+        "headers": {'Access-Control-Allow-Origin': '*'},
+        "body": "success"
+        }
+        return res
     except Exception as e:
-        print(e)
-        raise e
+        res = {
+        "isBase64Encoded": False,
+        "statusCode": 400,
+        "headers": {'Access-Control-Allow-Origin': '*'},
+        "body": "failed"
+        }
+        return res

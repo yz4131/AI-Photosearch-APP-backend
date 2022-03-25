@@ -57,6 +57,7 @@ def searchFromES(keywords):
     return photos
 
 
+
 def lambda_handler(event, context):
     os.environ['TZ'] = 'America/New_York'
     time.tzset()
@@ -73,3 +74,17 @@ def lambda_handler(event, context):
                 keywords.append(item.lower())
     # print(keywords)
     photos = searchFromES(keywords)
+
+    # to_urls
+    urls = []
+    for photo in photos:
+        url = 'https://b2photostorage.s3.amazonaws.com/' + photo
+        urls.append(url)
+    res = {
+        "isBase64Encoded": False,
+        "statusCode": 200,
+        "headers": {'Access-Control-Allow-Origin': '*'},
+        "body": json.dumps(urls)
+        }
+    print(res)
+    return res
