@@ -14,7 +14,9 @@ def lambda_handler(event, context):
 
     # Get the object from the event and show its content type
     bucket = event['Records'][0]['s3']['bucket']['name']
+    print(bucket)
     key = urllib.parse.unquote_plus(event['Records'][0]['s3']['object']['key'], encoding='utf-8')
+    print(key)
     labels=[]
     try:
         response = s3.get_object(Bucket=bucket, Key=key)
@@ -25,12 +27,14 @@ def lambda_handler(event, context):
         except:
             labels=[]
         #print(temp)
-        # print(temp['x-amz-meta-customLabels'])
+        print('1')
+        print(labels)
         predict = client.detect_labels(Image={'S3Object':{'Bucket':bucket,'Name':key}}, MaxLabels=4, MinConfidence=50)
+        print('PREDICT',predict)
         for label in predict['Labels']:
             labels.append(label['Name'])
         #print(1)
-        #print(labels)
+        print(labels)
         res = {
             'objectKey': key,
             'bucket': bucket,

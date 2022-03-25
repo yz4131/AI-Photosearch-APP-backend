@@ -30,3 +30,17 @@ Resources:
       Environment:
         Variables:
           REGION: us-east-1
+  CDDemoLambda3:
+    Type: "AWS::Serverless::Function"
+    Properties:
+      FunctionName: helper-2
+      Handler: lambda_function.lambda_handler
+      Runtime: python3.6
+      CodeUri: ./lf0
+      Description: "Lambda function for CD"
+      MemorySize: 128
+      Timeout: 30
+      Role: "arn:aws:iam::176363299110:role/service-role/helper-role-knsqpn2f"
+      Environment:
+        Variables:
+          REGION: us-east-1
