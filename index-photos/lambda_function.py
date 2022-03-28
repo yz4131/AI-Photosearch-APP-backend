@@ -4,7 +4,7 @@ import urllib.parse
 import boto3
 import requests
 
-
+# hello !!
 s3 = boto3.client('s3')
 client=boto3.client('rekognition')
 
