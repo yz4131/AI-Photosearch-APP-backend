@@ -1,0 +1,201 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Cloud Formation
+Resources:
+  cfphotosearchAPI:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      ApiKeySourceType: HEADER
+      Body:
+        swagger: "2.0"
+        info:
+          description: "AI Photo Search application, built during the Cloud and Big Data course\
+            \ at Columbia University."
+          version: "1.0.0"
+          title: "AI Photo Search"
+        host: "dl2y7ow6n3.execute-api.us-east-1.amazonaws.com"
+        basePath: "/v1"
+        schemes:
+        - "https"
+        paths:
+          /search:
+            get:
+              operationId: "searchPhotos"
+              produces:
+              - "application/json"
+              parameters:
+              - name: "q"
+                in: "query"
+                required: false
+                type: "string"
+              responses:
+                "200":
+                  description: "200 response"
+                  schema:
+                    $ref: "#/definitions/SearchResponse"
+                "500":
+                  description: "500 response"
+                  schema:
+                    $ref: "#/definitions/Error"
+                "403":
+                  description: "403 response"
+                  schema:
+                    $ref: "#/definitions/Error"
+              security:
+              - api_key: []
+          /search/{photo+}:
+            x-amazon-apigateway-any-method:
+              produces:
+              - "application/json"
+              parameters:
+              - name: "photo"
+                in: "path"
+                required: true
+                type: "string"
+              responses: {}
+          /upload/{bucket}/{filename}:
+            put:
+              produces:
+              - "application/json"
+              parameters:
+              - name: "filename"
+                in: "path"
+                required: true
+                type: "string"
+              - name: "bucket"
+                in: "path"
+                required: true
+                type: "string"
+              responses:
+                "200":
+                  description: "200 response"
+        securityDefinitions:
+          api_key:
+            type: "apiKey"
+            name: "x-api-key"
+            in: "header"
+        definitions:
+          Error:
+            type: "object"
+            properties:
+              code:
+                type: "integer"
+                format: "int32"
+              message:
+                type: "string"
+          Photo:
+            type: "object"
+            properties:
+              url:
+                type: "string"
+              labels:
+                type: "array"
+                items:
+                  type: "string"
+          SearchResponse:
+            type: "object"
+            properties:
+              results:
+                type: "array"
+                items:
+                  $ref: "#/definitions/Photo"
+      Name: cfphotosearchAPI
+  cflambda1:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cloud-formation-photosearch
+        S3Key: index-photos.zip
+      Description: "index-photos-lambda"
+      MemorySize: 128
+      Environment:
+        Variables:
+          REGION: us-east-1
+      Handler: lambda_function.lambda_handler
+      Role: "arn:aws:iam::176363299110:role/service-role/index-photos"
+      Timeout: 30
+      Runtime: python3.6
+      FunctionName: cflambda1
+  cflambda2:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cloud-formation-photosearch
+        S3Key: search-photos.zip
+      Description: "search-photos-lambda"
+      MemorySize: 128
+      Environment:
+        Variables:
+          REGION: us-east-1
+      Handler: lambda_function.lambda_handler
+      Role: "arn:aws:iam::176363299110:role/service-role/search-photos-role-3i3toddz"
+      Timeout: 30
+      Runtime: python3.6
+      FunctionName: cflambda2
+  cfAssetsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      AccessControl: PublicRead
+  cfClientsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      AccessControl: PublicRead
+  cfBucketPolicyC:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      PolicyDocument:
+        Id: PublicWebsitePolicy
+        Version: 2012-10-17
+        Statement:
+          - Sid: PublicReadForGetBucketObjects
+            Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: !Join
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref cfClientsBucket
+                - /*
+      Bucket: !Ref cfClientsBucket
+  cfBucketPolicyA:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      PolicyDocument:
+        Id: PublicWebsitePolicy
+        Version: 2012-10-17
+        Statement:
+          - Sid: PublicReadForGetBucketObjects
+            Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: !Join
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref cfAssetsBucket
+                - /*
+      Bucket: !Ref cfAssetsBucket
+  cfelasticsearch:
+    Type: AWS::OpenSearchService::Domain
+    Properties:
+      DomainName: 'cfelasticsearch'
+      EngineVersion: 'OpenSearch_1.0'
+      ClusterConfig:
+        InstanceType: 't3.small.search'
+      EBSOptions:
+        EBSEnabled: true
+        VolumeSize: 10
+        VolumeType: gp2
+      AccessPolicies:
+        Version: '2012-10-17'
+        Statement:
+          -
+            Effect: 'Allow'
+            Principal:
+              AWS: 'arn:aws:iam::176363299110:role/service-role/index-photos'
+            Action: 'es:*'
+            Resource: 'arn:aws:es:us-east-1:176363299110:domain/cfelasticsearch/*'
+          -
+            Effect: 'Allow'
+            Principal:
+              AWS: 'arn:aws:iam::176363299110:role/service-role/search-photos-role-3i3toddz'
+            Action: 'es:*'
+            Resource: 'arn:aws:es:us-east-1:176363299110:domain/cfelasticsearch/*'
